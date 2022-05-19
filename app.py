@@ -158,7 +158,7 @@ def main():
 
             if scale == 'Individual Apartments':
 
-                gdf['color_rgb'] = [colors[i-1] for i in gdf['color_int'].values.tolist()]
+                gdf['color_rgb'] = [colors[i] for i in gdf['color_int'].values.tolist()]
 
 
 

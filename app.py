@@ -158,15 +158,15 @@ def main():
 
             if scale == 'Individual Apartments':
 
+                gdf = gdf.sample(n=10000,random_state=21)
+
                 gdf['color_rgb'] = [colors[i] for i in gdf['color_int'].values.tolist()]
-
-
 
                 column_layer = pdk.Layer(
                     "ColumnLayer",
                     data=gdf.sample(n=10000,random_state=21),
                     get_position=["lng", "lat"],
-                    get_elevation=attribute,
+                    get_elevation='adjusted_sqm_price',
                     elevation_scale=.02,
                     radius=50,
                     extruded =True,
@@ -373,7 +373,7 @@ def main():
                     grouped[attribute_scaled]=(grouped[attribute_median]-grouped[attribute_median].min())/(grouped[attribute_median].max()-grouped[attribute_median].min())
 
                     grouped['color_int'] = grouped[attribute_scaled].apply(lambda x: custom_round(x,base=5))
-                    grouped['color_rgb'] = [colors[i-1] for i in grouped['color_int'].values.tolist()]
+                    grouped['color_rgb'] = [colors[i] for i in grouped['color_int'].values.tolist()]
 
                     grouped['tooltip_attribute'] = grouped[attribute_median].astype(int).astype(str)
 
@@ -398,7 +398,7 @@ def main():
                     grouped['scaled_adjusted_sqm_price']=(grouped['adjusted_sqm_price_median']-grouped['adjusted_sqm_price_median'].min())/(grouped['adjusted_sqm_price_median'].max()-grouped['adjusted_sqm_price_median'].min())
 
                     grouped['color_int'] = grouped['scaled_adjusted_sqm_price'].apply(lambda x: custom_round(x,base=5))
-                    grouped['color_rgb'] = [colors[i-1] for i in grouped['color_int'].values.tolist()]
+                    grouped['color_rgb'] = [colors[i] for i in grouped['color_int'].values.tolist()]
 
                     max_median = grouped.adjusted_sqm_price_median.max()
                     min_median = grouped.adjusted_sqm_price_median.min()

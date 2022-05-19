@@ -86,23 +86,6 @@ def main():
 
     st.markdown("<h1 style='text-align: center; color: White;'>Copenhagen Housing</h1>", unsafe_allow_html=True)
     st.write('')
-
-    st.markdown("""
-    <div>
-      <input type="checkbox" name="uchk" checked>
-      <label for="uchk">Check CRS's for parish & municipalities.</label>
-    </div>
-    <div>
-      <input type="checkbox" name="uchk" checked>
-      <label for="uchk">Create new github with the final data and a notebook that shows how the data was constructed</label>
-    </div>
-
-    <div>
-      <input type="checkbox" name="uchk" unchecked>
-      <label for="uchk">Finish report</label>
-    </div>
-    """, unsafe_allow_html=True)
-        
     
     options = ['adjusted_sqm_price', 
     'min_dist_to_bar', 

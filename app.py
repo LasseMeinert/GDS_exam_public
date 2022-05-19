@@ -234,12 +234,6 @@ def main():
                     #convert adjusted_sqm_price to thousand separated integer (string)
                     grouped['tooltip_price'] = grouped['adjusted_sqm_price_median'].astype(int)
                     grouped['tooltip_price'] = grouped['tooltip_price'].map('{:,.0f}'.format)
-                    
-                    #scale attribute
-                    grouped[attribute_scaled]=(grouped[attribute_median]-grouped[attribute_median].min())/(grouped[attribute_median].max()-grouped[attribute_median].min())
-                    
-                    grouped['color_int'] = grouped[attribute_scaled].apply(lambda x: custom_round(x,base=5))
-                    grouped['color_rgb'] = [colors[i] for i in grouped['color_int'].values.tolist()]
 
                     grouped['tooltip_attribute'] = grouped[attribute_median].astype(int).astype(str)
 
@@ -251,6 +245,7 @@ def main():
 
 
                 else:
+
                     grouped = gdf.groupby(['postal','kommune']).agg({'adjusted_sqm_price':['mean','median']}).reset_index()
             
                     grouped['postal'] = grouped['postal'].astype(str)
@@ -262,9 +257,6 @@ def main():
                     grouped = grouped.drop(['drop_1','drop_2'],axis=1)
 
                     grouped['scaled_adjusted_sqm_price']=(grouped['adjusted_sqm_price_median']-grouped['adjusted_sqm_price_median'].min())/(grouped['adjusted_sqm_price_median'].max()-grouped['adjusted_sqm_price_median'].min())
-
-                    grouped['color_int'] = grouped['scaled_adjusted_sqm_price'].apply(lambda x: custom_round(x,base=5))
-                    grouped['color_rgb'] = [colors[i] for i in grouped['color_int'].values.tolist()]
 
                     #convert adjusted_sqm_price to thousand separated integer (string)
                     grouped['tooltip_price'] = grouped['adjusted_sqm_price_median'].astype(int)
@@ -283,7 +275,10 @@ def main():
 
                 grouped['scaled_adjusted_sqm_price']=(grouped['adjusted_sqm_price_median']-grouped['adjusted_sqm_price_median'].min())/(grouped['adjusted_sqm_price_median'].max()-grouped['adjusted_sqm_price_median'].min())
 
-                grouped['color_int'] = grouped['scaled_adjusted_sqm_price'].apply(lambda x: custom_round(x,base=5))
+                #scale attribute
+                grouped[attribute_scaled]=(grouped[attribute_median]-grouped[attribute_median].min())/(grouped[attribute_median].max()-grouped[attribute_median].min())
+                    
+                grouped['color_int'] = grouped[attribute_scaled].apply(lambda x: custom_round(x,base=5))
                 grouped['color_rgb'] = [colors[i] for i in grouped['color_int'].values.tolist()]
 
                 #convert adjusted_sqm_price to thousand separated integer (string)

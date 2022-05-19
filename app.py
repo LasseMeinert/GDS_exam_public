@@ -126,7 +126,7 @@ def main():
     page_choice = st.sidebar.radio("Menu",pages)
 
     #fetch data - we can put this inside the if later
-    gdf = get_data(limit=5000)
+    gdf = get_data()
 
     #if home page is selected
     if page_choice == 'Home':

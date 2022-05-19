@@ -64,8 +64,18 @@ def get_sogne():
 
 
 def pd_column_to_pretty(pd_column):
-    d = {'square_meters_price':'Price m\u00b2',
-        'adjusted_sqm_price': 'Adj. price m\u00b2'
+    d = {'adjusted_sqm_price': 'Adj. price m\u00b2',
+    'min_dist_to_bar':'Min. dist to bar',
+ 'min_dist_to_cafe':'Min. dist to café',
+ 'min_dist_to_coastline':'Min. dist to coastline',
+ 'min_dist_to_college':'Min. dist to college',
+ 'min_dist_to_grocery':'Min. dist to grocery',
+ 'min_dist_to_kindergarten':'Min. dist to kindergarten',
+ 'min_dist_to_restaurant':'Min. dist to restaurant',
+ 'min_dist_to_school':'Min. dist to school',
+ 'min_dist_to_supermarket':'Min. dist to supermarket',
+ 'min_dist_to_university':'Min. dist to university',
+ 'min_dist_to_water':'Min. dist to water'
     }
     return d[pd_column]
 
@@ -90,10 +100,18 @@ def main():
     """, unsafe_allow_html=True)
         
     
-    #  <div>
-    #   <input type="checkbox" name="chk" checked>
-    #   <label for="chk">Checked.</label>
-    # </div> 
+    options = ['adjusted_sqm_price', 
+    'min_dist_to_bar', 
+    'min_dist_to_cafe', 
+    'min_dist_to_coastline', 
+    'min_dist_to_college', 
+    'min_dist_to_grocery', 
+    'min_dist_to_kindergarten', 
+    'min_dist_to_restaurant', 
+    'min_dist_to_school', 
+    'min_dist_to_supermarket', 
+    'min_dist_to_university', 
+    'min_dist_to_water']
     
     space = [st.write('') for i in range(2)]
 
@@ -122,7 +140,7 @@ def main():
         year_filter = c1.select_slider("Data from: ",options=years,value=(min_y,max_y))
         
         #attribute dropdown
-        attribute = c2.selectbox("Attribute",options=['adjusted_sqm_price','square_meters_price'],format_func=pd_column_to_pretty,index=0)
+        attribute = c2.selectbox("Attribute",options=options,format_func=pd_column_to_pretty,index=0)
         
         #scale for plot
         scale = c3.selectbox("Scale",options=['Individual Apartments','Postal Codes','Parish (Sogn)'])
@@ -187,27 +205,69 @@ def main():
                 
                 post = get_postnumre().drop('id',axis=1)
 
-                grouped = gdf.groupby(['postal','kommune']).agg({'adjusted_sqm_price':['mean','median']}).reset_index()
+                if attribute != 'adjusted_sqm_price':
+                    
+                    attribute_median = attribute + '_median'
+                    attribute_scaled = 'scaled_' + attribute
+                    attribute_pretty = attribute.replace('_',' ')
+
+                    grouped = gdf.groupby(['postal','kommune']).agg({'adjusted_sqm_price':['mean','median'],attribute:'median'}).reset_index()
+                    
+                    grouped['postal'] = grouped['postal'].astype(str)
+                    post['POSTNR_TXT'] = post['POSTNR_TXT'].astype(str)
+
+                    grouped = post.merge(grouped,left_on='POSTNR_TXT',right_on='postal')
+                    
+
+                    grouped.columns = ['city','postal','geometry','drop_1','drop_2','adjusted_sqm_price_mean','adjusted_sqm_price_median',attribute_median]
+                    grouped = grouped.drop(['drop_1','drop_2'],axis=1)
+                    
+
+                    grouped['scaled_adjusted_sqm_price']=(grouped['adjusted_sqm_price_median']-grouped['adjusted_sqm_price_median'].min())/(grouped['adjusted_sqm_price_median'].max()-grouped['adjusted_sqm_price_median'].min())
+
+                    #convert adjusted_sqm_price to thousand separated integer (string)
+                    grouped['tooltip_price'] = grouped['adjusted_sqm_price_median'].astype(int)
+                    grouped['tooltip_price'] = grouped['tooltip_price'].map('{:,.0f}'.format)
+                    
+                    #scale attribute
+                    grouped[attribute_scaled]=(grouped[attribute_median]-grouped[attribute_median].min())/(grouped[attribute_median].max()-grouped[attribute_median].min())
+                    
+                    grouped['color_int'] = grouped[attribute_scaled].apply(lambda x: custom_round(x,base=5))
+                    grouped['color_rgb'] = [colors[i] for i in grouped['color_int'].values.tolist()]
+
+                    grouped['tooltip_attribute'] = grouped[attribute_median].astype(int).astype(str)
+
+                    tooltip = {
+                        "html": "<b>{city}</b> <br> {tooltip_price} price pr sq meter <br> Median " + attribute_pretty + ": {tooltip_attribute}",
+                        "style": {"background": "grey", "color": "white", "font-family": '"Helvetica Neue", Arial', "z-index": "10000"},
+                    }
+
+
+
+                else:
+                    grouped = gdf.groupby(['postal','kommune']).agg({'adjusted_sqm_price':['mean','median']}).reset_index()
             
-                grouped['postal'] = grouped['postal'].astype(str)
-                post['POSTNR_TXT'] = post['POSTNR_TXT'].astype(str)
+                    grouped['postal'] = grouped['postal'].astype(str)
+                    post['POSTNR_TXT'] = post['POSTNR_TXT'].astype(str)
 
-                grouped = post.merge(grouped,left_on='POSTNR_TXT',right_on='postal')
+                    grouped = post.merge(grouped,left_on='POSTNR_TXT',right_on='postal')
 
-                grouped.columns = ['city','postal','geometry','drop_1','drop_2','adjusted_sqm_price_mean','adjusted_sqm_price_median']
-                grouped = grouped.drop(['drop_1','drop_2'],axis=1)
-     
-                #max_median = grouped.adjusted_sqm_price_median.max()
-                #min_median = grouped.adjusted_sqm_price_median.min()
+                    grouped.columns = ['city','postal','geometry','drop_1','drop_2','adjusted_sqm_price_mean','adjusted_sqm_price_median']
+                    grouped = grouped.drop(['drop_1','drop_2'],axis=1)
 
-                grouped['scaled_adjusted_sqm_price']=(grouped['adjusted_sqm_price_median']-grouped['adjusted_sqm_price_median'].min())/(grouped['adjusted_sqm_price_median'].max()-grouped['adjusted_sqm_price_median'].min())
+                    grouped['scaled_adjusted_sqm_price']=(grouped['adjusted_sqm_price_median']-grouped['adjusted_sqm_price_median'].min())/(grouped['adjusted_sqm_price_median'].max()-grouped['adjusted_sqm_price_median'].min())
 
-                grouped['color_int'] = grouped['scaled_adjusted_sqm_price'].apply(lambda x: custom_round(x,base=5))
-                grouped['color_rgb'] = [colors[i] for i in grouped['color_int'].values.tolist()]
+                    grouped['color_int'] = grouped['scaled_adjusted_sqm_price'].apply(lambda x: custom_round(x,base=5))
+                    grouped['color_rgb'] = [colors[i] for i in grouped['color_int'].values.tolist()]
 
-                #convert adjusted_sqm_price to thousand separated integer (string)
-                grouped['tooltip_price'] = grouped['adjusted_sqm_price_median'].astype(int)
-                grouped['tooltip_price'] = grouped['tooltip_price'].map('{:,.0f}'.format)
+                    #convert adjusted_sqm_price to thousand separated integer (string)
+                    grouped['tooltip_price'] = grouped['adjusted_sqm_price_median'].astype(int)
+                    grouped['tooltip_price'] = grouped['tooltip_price'].map('{:,.0f}'.format)
+
+                    tooltip = {
+                        "html": "<b>{city}</b> <br> {tooltip_price} price pr sq meter",
+                        "style": {"background": "grey", "color": "white", "font-family": '"Helvetica Neue", Arial', "z-index": "10000"},
+                    }
 
                 geojson = pdk.Layer(
                 "GeoJsonLayer",
@@ -230,12 +290,6 @@ def main():
                 get_line_width=2,
                 line_width_min_pixels=1,
                 )
-
-                
-                tooltip = {
-                    "html": "<b>{city}</b> <br> {tooltip_price} price pr sq meter",
-                    "style": {"background": "grey", "color": "white", "font-family": '"Helvetica Neue", Arial', "z-index": "10000"},
-                }
 
 
                 r = pdk.Deck(
@@ -251,32 +305,76 @@ def main():
 
                 sogne = get_sogne()
 
-                grouped = gdf.groupby(['sognekode']).agg({'adjusted_sqm_price':['mean','median']}).reset_index()
-            
-                grouped['SOGNEKODE'] = grouped['sognekode'].astype(str)
+                if attribute != 'adjusted_sqm_price':
+                    
+                    attribute_median = attribute + '_median'
+                    attribute_scaled = 'scaled_' + attribute
+                    attribute_pretty = attribute.replace('_',' ')
+
+                    grouped = gdf.groupby(['sognekode']).agg({'adjusted_sqm_price':['mean','median'],attribute:'median'}).reset_index()
+
+                    grouped['SOGNEKODE'] = grouped['sognekode'].astype(str)
+                    
+                    sogne['SOGNEKODE'] = sogne['SOGNEKODE'].astype(str)
+                    
+                    grouped = sogne.merge(grouped,left_on=['SOGNEKODE'],right_on=['sognekode'])
+
+                    grouped.columns = ['drop_1','sognekode','sognenavn','geometry','drop_2','adjusted_sqm_price_mean','adjusted_sqm_price_median',attribute_median,'drop_3']
+                    grouped = grouped.drop(['drop_1','drop_2','drop_3'],axis=1)
+
+                    grouped['scaled_adjusted_sqm_price']=(grouped['adjusted_sqm_price_median']-grouped['adjusted_sqm_price_median'].min())/(grouped['adjusted_sqm_price_median'].max()-grouped['adjusted_sqm_price_median'].min())
+
+                    #convert adjusted_sqm_price to thousand separated integer (string)
+                    grouped['tooltip_price'] = grouped['adjusted_sqm_price_median'].astype(int)
+                    grouped['tooltip_price'] = grouped['tooltip_price'].map('{:,.0f}'.format)
+                    
+                    #scale attribute
+                    grouped[attribute_scaled]=(grouped[attribute_median]-grouped[attribute_median].min())/(grouped[attribute_median].max()-grouped[attribute_median].min())
+
+                    grouped['color_int'] = grouped[attribute_scaled].apply(lambda x: custom_round(x,base=5))
+                    grouped['color_rgb'] = [colors[i-1] for i in grouped['color_int'].values.tolist()]
+
+                    grouped['tooltip_attribute'] = grouped[attribute_median].astype(int).astype(str)
+
+                    tooltip = {
+                    "html": "<b>{sognenavn}</b> <br> {tooltip_price} price pr sq meter <br> Median " + attribute_pretty + ": {tooltip_attribute}",
+                    "style": {"background": "grey", "color": "white", "font-family": '"Helvetica Neue", Arial', "z-index": "10000"},
+                    }
+
+                else:
+
+                    grouped = gdf.groupby(['sognekode']).agg({'adjusted_sqm_price':['mean','median']}).reset_index()
                 
-                sogne['SOGNEKODE'] = sogne['SOGNEKODE'].astype(str)
-                
-                grouped = sogne.merge(grouped,left_on=['SOGNEKODE'],right_on=['sognekode'])
+                    grouped['SOGNEKODE'] = grouped['sognekode'].astype(str)
+                    
+                    sogne['SOGNEKODE'] = sogne['SOGNEKODE'].astype(str)
+                    
+                    grouped = sogne.merge(grouped,left_on=['SOGNEKODE'],right_on=['sognekode'])
 
-                grouped.columns = ['drop_1','sognekode','sognenavn','geometry','drop_2','adjusted_sqm_price_mean','adjusted_sqm_price_median','drop_3']
-                grouped = grouped.drop(['drop_1','drop_2','drop_3'],axis=1)
+                    grouped.columns = ['drop_1','sognekode','sognenavn','geometry','drop_2','adjusted_sqm_price_mean','adjusted_sqm_price_median','drop_3']
+                    grouped = grouped.drop(['drop_1','drop_2','drop_3'],axis=1)
 
-                grouped['scaled_adjusted_sqm_price']=(grouped['adjusted_sqm_price_median']-grouped['adjusted_sqm_price_median'].min())/(grouped['adjusted_sqm_price_median'].max()-grouped['adjusted_sqm_price_median'].min())
+                    grouped['scaled_adjusted_sqm_price']=(grouped['adjusted_sqm_price_median']-grouped['adjusted_sqm_price_median'].min())/(grouped['adjusted_sqm_price_median'].max()-grouped['adjusted_sqm_price_median'].min())
 
-                grouped['color_int'] = grouped['scaled_adjusted_sqm_price'].apply(lambda x: custom_round(x,base=5))
-                grouped['color_rgb'] = [colors[i-1] for i in grouped['color_int'].values.tolist()]
+                    grouped['color_int'] = grouped['scaled_adjusted_sqm_price'].apply(lambda x: custom_round(x,base=5))
+                    grouped['color_rgb'] = [colors[i-1] for i in grouped['color_int'].values.tolist()]
 
-                max_median = grouped.adjusted_sqm_price_median.max()
-                min_median = grouped.adjusted_sqm_price_median.min()
+                    max_median = grouped.adjusted_sqm_price_median.max()
+                    min_median = grouped.adjusted_sqm_price_median.min()
 
-                grouped['color'] = (grouped['adjusted_sqm_price_median']-min_median)/(max_median-min_median)*255
-                grouped['color'] = grouped['color'].astype(int)
+                    grouped['color'] = (grouped['adjusted_sqm_price_median']-min_median)/(max_median-min_median)*255
+                    grouped['color'] = grouped['color'].astype(int)
 
-                #convert adjusted_sqm_price to thousand separated integer (string)
-                grouped['tooltip_price'] = grouped['adjusted_sqm_price_median'].astype(int)
-                grouped['tooltip_price'] = grouped['tooltip_price'].map('{:,.0f}'.format)
-           
+                    #convert adjusted_sqm_price to thousand separated integer (string)
+                    grouped['tooltip_price'] = grouped['adjusted_sqm_price_median'].astype(int)
+                    grouped['tooltip_price'] = grouped['tooltip_price'].map('{:,.0f}'.format)
+                    
+                    tooltip = {
+                    "html": "<b>{sognenavn}</b> <br> {tooltip_price} price pr sq meter",
+                    "style": {"background": "grey", "color": "white", "font-family": '"Helvetica Neue", Arial', "z-index": "10000"},
+                    }
+
+
                 geojson = pdk.Layer(
                 "GeoJsonLayer",
                 #"ColumnLayer",
@@ -298,11 +396,6 @@ def main():
                 get_line_width=2,
                 line_width_min_pixels=1,
                 )
-
-                tooltip = {
-                    "html": "<b>{sognenavn}</b> <br> {tooltip_price} price pr sq meter",
-                    "style": {"background": "grey", "color": "white", "font-family": '"Helvetica Neue", Arial', "z-index": "10000"},
-                }
 
                 r = pdk.Deck(
                     layers =[geojson],

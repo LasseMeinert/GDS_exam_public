@@ -160,9 +160,11 @@ def main():
 
                 gdf['color_rgb'] = [colors[i-1] for i in gdf['color_int'].values.tolist()]
 
+
+
                 column_layer = pdk.Layer(
                     "ColumnLayer",
-                    data=gdf,
+                    data=gdf.sample(n=20000,random_state=21),
                     get_position=["lng", "lat"],
                     get_elevation=attribute,
                     elevation_scale=.02,

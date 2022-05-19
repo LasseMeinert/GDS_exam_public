@@ -164,7 +164,7 @@ def main():
 
                 column_layer = pdk.Layer(
                     "ColumnLayer",
-                    data=gdf.sample(n=20000,random_state=21),
+                    data=gdf.sample(n=10000,random_state=21),
                     get_position=["lng", "lat"],
                     get_elevation=attribute,
                     elevation_scale=.02,

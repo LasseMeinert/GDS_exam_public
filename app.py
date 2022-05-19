@@ -54,7 +54,7 @@ def get_data(limit=None):
 
 @st.cache
 def get_postnumre():
-    gdf = gpd.read_file('data/filtered_postnumre.geojson')
+    gdf = gpd.read_file('data/postnumre_filtered_v2.geojson')
     return gdf
 
 @st.cache
@@ -160,6 +160,9 @@ def main():
         #search button
         go = button.button('Plot ')
 
+        #columns for plot and colorbar
+        mapp, color_bar = st.columns((1,.125))
+
         if go:
 
             #filter the dataframe by selected year range
@@ -203,17 +206,31 @@ def main():
                     tooltip=tooltip,
                     map_provider="carto",
                 )
+
+                min_value = gdf[attribute].min()
+                max_value = gdf[attribute].max()
+
+                colormap = cm.create_colormap(
+                    palette,
+                    label=attribute.replace("_", " ").title(),
+                    width=0.2,
+                    height=3,
+                    orientation="vertical",
+                    vmin=min_value,
+                    vmax=max_value,
+                    font_size=8,
+                )
     
         
             elif scale == 'Postal Codes':
                 
                 post = get_postnumre().drop('id',axis=1)
 
+                attribute_median = attribute + '_median'
+                attribute_scaled = 'scaled_' + attribute
+                attribute_pretty = attribute.replace('_',' ')
+
                 if attribute != 'adjusted_sqm_price':
-                    
-                    attribute_median = attribute + '_median'
-                    attribute_scaled = 'scaled_' + attribute
-                    attribute_pretty = attribute.replace('_',' ')
 
                     grouped = gdf.groupby(['postal','kommune']).agg({'adjusted_sqm_price':['mean','median'],attribute:'median'}).reset_index()
                     
@@ -273,10 +290,27 @@ def main():
                         "style": {"background": "grey", "color": "white", "font-family": '"Helvetica Neue", Arial', "z-index": "10000"},
                     }
 
+                    grouped['tooltip_attribute'] = grouped[attribute_median].astype(int).astype(str)
+
+                temp = grouped[['geometry','city','tooltip_attribute',]].drop_duplicates()
+
+                grouped = grouped.groupby('city').agg({'adjusted_sqm_price_median':'median',attribute_median:'median'})
+
+                grouped['scaled_adjusted_sqm_price']=(grouped['adjusted_sqm_price_median']-grouped['adjusted_sqm_price_median'].min())/(grouped['adjusted_sqm_price_median'].max()-grouped['adjusted_sqm_price_median'].min())
+
+                grouped['color_int'] = grouped['scaled_adjusted_sqm_price'].apply(lambda x: custom_round(x,base=5))
+                grouped['color_rgb'] = [colors[i] for i in grouped['color_int'].values.tolist()]
+
+                #convert adjusted_sqm_price to thousand separated integer (string)
+                grouped['tooltip_price'] = grouped['adjusted_sqm_price_median'].astype(int)
+                grouped['tooltip_price'] = grouped['tooltip_price'].map('{:,.0f}'.format)
+
+                new = temp.merge(grouped,on='city')
+
                 geojson = pdk.Layer(
                 "GeoJsonLayer",
                 #"ColumnLayer",
-                grouped,
+                new,
                 #id="geojson",
                 pickable=True,
                 opacity=0.5,
@@ -304,10 +338,28 @@ def main():
                     tooltip=tooltip,
                 )
 
+                min_value = new[attribute_median].min()
+                max_value = new[attribute_median].max()
+
+                colormap = cm.create_colormap(
+                    palette,
+                    label=attribute.replace("_", " ").title(),
+                    width=0.2,
+                    height=3,
+                    orientation="vertical",
+                    vmin=min_value,
+                    vmax=max_value,
+                    font_size=8,
+                )
+
 
             elif scale == 'Parish (Sogn)':
 
                 sogne = get_sogne()
+
+                attribute_median = attribute + '_median'
+                attribute_scaled = 'scaled_' + attribute
+                attribute_pretty = attribute.replace('_',' ')
 
                 if attribute != 'adjusted_sqm_price':
                     
@@ -408,20 +460,10 @@ def main():
                     tooltip=tooltip,
                 )
 
+                min_value = grouped[attribute_median].min()
+                max_value = grouped[attribute_median].max()
 
-            #columns for plot and colorbar
-            mapp, color_bar = st.columns((1,.125))
-
-            #fetch max and min values for colorbar ticks
-            min_value = gdf[attribute].min()
-            max_value = gdf[attribute].max()
-
-            #plot the mao
-            mapp.pydeck_chart(r)
-
-            #show the colorbar
-            color_bar.write(
-                cm.create_colormap(
+                colormap = cm.create_colormap(
                     palette,
                     label=attribute.replace("_", " ").title(),
                     width=0.2,
@@ -431,6 +473,14 @@ def main():
                     vmax=max_value,
                     font_size=8,
                 )
+
+
+
+            #plot the mao
+            mapp.pydeck_chart(r)
+
+            #show the colorbar
+            color_bar.write(colormap  
             )
 
 
